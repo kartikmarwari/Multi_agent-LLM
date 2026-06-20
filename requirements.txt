@@ -1,0 +1,27 @@
+langchain
+langchain-core
+langchain-community
+langgraph
+langchain-openai
+langchain-google-genai
+langchain-groq
+langchain-mistralai
+python-dotenv
+faiss-cpu
+tiktoken
+fastapi
+uvicorn
+requests
+tavily-python
+langchain
+langchain-core
+langgraph
+langchain-groq
+tavily-python
+beautifulsoup4
+requests
+python-dotenv
+rich
+
+# Optional: only needed if you switch agents.py back to Mistral
+# langchain-mistralai
