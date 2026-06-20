@@ -23,13 +23,11 @@ def web_search(query: str) -> str:
     for r in results["results"]:
         out.append(
     f"""
-{{
-  "title": "{r['title']}",
-  "url": "{r['url']}",
-  "summary": "{r['content'][:200]}"
-}}
+Title: {r['title']}
+URL: {r['url']}
+Summary: {r['content'][:200]}...
 """
-        )
+)
 
     return "\n====================\n".join(out)
 
