@@ -70,17 +70,31 @@ def scrape_url(url: str) -> str:
 def multi_search(queries: str) -> str:
     """Search multiple queries and return CLEAN markdown"""
 
+    MAX_LEN = 350  # safe limit
+
     query_list = [q.strip() for q in queries.split("|") if q.strip()]
     final_md = []
 
     for q in query_list:
-        results = tavily.search(
-            query=q,
-            max_results=5,
-            search_depth="advanced"
-        )
+        # 🔥 CLEAN THE QUERY
+        clean_q = q.replace("Topic:", "").replace("Sub-questions:", "")
+        clean_q = clean_q.strip()
 
-        section = [f"## 🔎 {q}\n"]
+        # 🔥 TRIM LENGTH (CRITICAL FIX)
+        if len(clean_q) > MAX_LEN:
+            clean_q = clean_q[:MAX_LEN]
+
+        try:
+            results = tavily.search(
+                query=clean_q,
+                max_results=5,
+                search_depth="advanced"
+            )
+        except Exception as e:
+            final_md.append(f"## ❌ Error for query: {clean_q}\n{str(e)}")
+            continue
+
+        section = [f"## 🔎 {clean_q}\n"]
 
         for r in results["results"]:
             section.append(f"""
