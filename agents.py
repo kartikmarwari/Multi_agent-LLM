@@ -26,6 +26,9 @@ splitter_prompt = ChatPromptTemplate.from_messages([
     ("system",
 """You are a best and super research planning assistant of 2026.
   dont make all question similar 
+  Use tools ONLY when needed.
+DO NOT treat tool outputs as function calls.
+Tool outputs are plain text, not JSON.
 Your job:
 - Take a broad topic
 - Break it into 5-6 focused sub-questions by seeply analyze what user want to know  that revolve around the question asked from user so that user will satistfied with answer , and the main question of user can be answered
