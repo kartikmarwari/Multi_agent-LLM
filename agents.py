@@ -31,7 +31,9 @@ rate_limiter = InMemoryRateLimiter(
 )
 
 base_model = ChatMistralAI(
-    model="mistral-small-2506",
+    # mistral-small is rate-limited on the free plan; ministral-14b isn't.
+    # Override with the MISTRAL_MODEL secret if needed.
+    model=os.getenv("MISTRAL_MODEL", "ministral-14b-latest"),
     temperature=0.2,   # slight creativity boost
     max_tokens=2000,
     rate_limiter=rate_limiter,
