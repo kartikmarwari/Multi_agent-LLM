@@ -65,12 +65,16 @@ def scrape_url(url: str) -> str:
 # saves it from calling web_search one by one manually)
 # =========================
 @tool
-def multi_search(queries: str) -> str:
-    """Search multiple queries and return CLEAN markdown"""
+def multi_search(queries: str | list[str]) -> str:
+    """Search multiple queries and return CLEAN markdown.
+    Pass a list of queries, or one string with queries separated by '|'."""
 
     MAX_LEN = 350  # safe limit
 
-    query_list = [q.strip() for q in queries.split("|") if q.strip()]
+    # Some models (e.g. Groq) send a JSON array instead of a '|' string
+    if isinstance(queries, str):
+        queries = queries.split("|")
+    query_list = [q.strip() for q in queries if q.strip()]
     final_md = []
 
     for q in query_list:
