@@ -1,4 +1,8 @@
+import httpx
 from langchain.agents import create_agent
+from langchain.agents.middleware import ModelFallbackMiddleware, ModelRetryMiddleware
+from langchain_core.rate_limiters import InMemoryRateLimiter
+from langchain_groq import ChatGroq
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -11,10 +15,52 @@ from dotenv import load_dotenv
 # =========================
 load_dotenv()
 
-model = ChatMistralAI(
+def _is_rate_limit(exc: Exception) -> bool:
+    return isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429
+
+# Mistral free tier allows ~1 request/sec; pace every call so a single
+# pipeline run (agents make several calls in a loop) doesn't trip 429s.
+rate_limiter = InMemoryRateLimiter(
+    requests_per_second=0.5,
+    check_every_n_seconds=0.1,
+    max_bucket_size=1,
+)
+
+base_model = ChatMistralAI(
     model="mistral-small-2506",
     temperature=0.2,   # slight creativity boost
-    max_tokens=2000
+    max_tokens=2000,
+    rate_limiter=rate_limiter,
+)
+
+# Optional backup provider: set GROQ_API_KEY to fall back to Groq
+# when Mistral keeps rate-limiting.
+fallback_model = (
+    ChatGroq(model="openai/gpt-oss-120b", temperature=0.2, max_tokens=2000)
+    if os.getenv("GROQ_API_KEY") else None
+)
+
+# Used by the plain chains (splitter / planner / writer / critic)
+model = base_model.with_retry(
+    retry_if_exception_type=(httpx.HTTPStatusError,),
+    wait_exponential_jitter=True,
+    stop_after_attempt=4,
+)
+if fallback_model:
+    model = model.with_fallbacks([fallback_model])
+
+# Used by the tool-calling agents (create_agent needs a real chat model,
+# so retry/fallback go in as middleware instead). Fallback must come first
+# (outermost) so Mistral is retried before switching providers.
+agent_middleware = [ModelFallbackMiddleware(fallback_model)] if fallback_model else []
+agent_middleware.append(
+    ModelRetryMiddleware(
+        max_retries=3,
+        retry_on=_is_rate_limit,
+        initial_delay=2.0,
+        backoff_factor=2.0,
+        on_failure="error",
+    )
 )
 
 # =========================
@@ -68,7 +114,8 @@ def build_question_splitter():
 # =========================
 def build_search_agent():
     return create_agent(
-        model=model,
+        model=base_model,
+        middleware=agent_middleware,
         tools=[web_search, multi_search],
         system_prompt="""You are a high-precision web research assistant.
 
@@ -116,7 +163,8 @@ If two points are similar → DELETE one."""
 # =========================
 def build_reader_agent():
     return create_agent(
-        model=model,
+        model=base_model,
+        middleware=agent_middleware,
         tools=[scrape_url],
         system_prompt="""You are a deep research extraction agent.
 
