@@ -1,3 +1,4 @@
+import groq
 import httpx
 import streamlit as st
 from agents import (
@@ -94,8 +95,8 @@ if run_btn:
         with st.expander("✍️ Step 4: Writer Agent", expanded=True):
 
             research = f"""
-            {state['search_result']}
-            {state['scraped_content']}
+            {state['search_result'][:4000]}
+            {state['scraped_content'][:3000]}
             """
 
             report = writer_chain.invoke({
@@ -140,5 +141,7 @@ if run_btn:
             st.error("⏳ The LLM API rate limit was hit. Please wait a minute and try again.")
         else:
             st.error(f"LLM API error ({e.response.status_code}). Please try again later.")
+    except groq.RateLimitError:
+        st.error("⏳ The LLM API rate limit was hit. Please wait a minute and try again.")
     except Exception as e:
         st.error(f"Something went wrong: {e}")

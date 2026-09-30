@@ -15,7 +15,7 @@ def web_search(query: str) -> str:
     
     results = tavily.search(
         query=query,
-        max_results=8,
+        max_results=4,
         search_depth="advanced"
     )
 
@@ -53,7 +53,7 @@ def scrape_url(url: str) -> str:
         if len(clean_text) < 500:
             return ""
 
-        return clean_text[:3000]
+        return clean_text[:1500]
 
     except Exception as e:
         return f"Scraping failed: {str(e)}"
@@ -89,7 +89,7 @@ def multi_search(queries: str | list[str]) -> str:
         try:
             results = tavily.search(
                 query=clean_q,
-                max_results=5,
+                max_results=3,
                 search_depth="advanced"
             )
         except Exception as e:

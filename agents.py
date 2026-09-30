@@ -1,3 +1,4 @@
+import groq
 import httpx
 from langchain.agents import create_agent
 from langchain.agents.middleware import ModelFallbackMiddleware, ModelRetryMiddleware
@@ -16,6 +17,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def _is_rate_limit(exc: Exception) -> bool:
+    # Mistral raises httpx errors; Groq raises its own RateLimitError
+    if isinstance(exc, groq.RateLimitError):
+        return True
     return isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429
 
 # Mistral free tier allows ~1 request/sec; pace every call so a single
@@ -47,7 +51,14 @@ model = base_model.with_retry(
     stop_after_attempt=4,
 )
 if fallback_model:
-    model = model.with_fallbacks([fallback_model])
+    model = model.with_fallbacks([
+        # Groq free tier has a tokens-per-minute cap; wait and retry on it
+        fallback_model.with_retry(
+            retry_if_exception_type=(groq.RateLimitError,),
+            wait_exponential_jitter=True,
+            stop_after_attempt=4,
+        )
+    ])
 
 # Used by the tool-calling agents (create_agent needs a real chat model,
 # so retry/fallback go in as middleware instead). Fallback must come first
@@ -142,7 +153,7 @@ BEHAVIOR:
 
 OUTPUT RULES:
 
-- 5–6 UNIQUE results per sub-question
+- 2–3 UNIQUE results per sub-question
 - Each result must include:
   - Title
   - URL
@@ -172,7 +183,7 @@ MANDATORY:
 
 - ALWAYS use scrape_url tool
 - NEVER answer without scraping
-- Use 4–5 HIGH-QUALITY URLs
+- Use 3 HIGH-QUALITY URLs
 
 ANTI-REPETITION RULES:
 
